@@ -79,4 +79,4 @@ node netmon-disable.js --host "ip:port" --delete
 
 ## License
 
-MIT Public license, you're free tp use this however you wish.
+MIT Public license, you're free to use this however you wish.
