@@ -54,7 +54,28 @@ To start the monitor, run the following command from the project directory:
 
 ```bash
 npm start
+```
 
+## netmon-enable.js
+
+Add/enable a server entry
+
+```bash
+node netmon-enable --name "name" --host "ip:port" --icmp_ping_frequency "N"
+```
+
+## netmon-disable.js
+
+Disable matching entry, --delete to force delete it from monitor.json
+
+```bash
+node netmon-disable.js --name "Something"
+```
+or
+
+```bash
+node netmon-disable.js --host "ip:port" --delete
+```
 
 ## License
 

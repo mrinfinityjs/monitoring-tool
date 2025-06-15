@@ -2,6 +2,7 @@
   "log_to_file": true,
   "log_file_path": "monitor.log",
   "log_max_size_mb": 10,
+  "disabled_show_total_time": 300,
   "servers": [
     {
       "name": "Google DNS",
@@ -12,18 +13,8 @@
       "icmp_pings_per_check": 4,
       "good_display_ms": 50,
       "alert_display_ms": 100,
-      "critical_display_ms": 200
-    },
-    {
-      "name": "High Latency Sim",
-      "address": "latency.google.com",
-      "port": 80,
-      "port_ping_frequency": 10,
-      "icmp_ping_frequency": 8,
-      "icmp_pings_per_check": 3,
-      "good_display_ms": 100,
-      "alert_display_ms": 250,
-      "critical_display_ms": 500
+      "critical_display_ms": 200,
+      "enabled": true
     },
     {
       "name": "Cloudflare DNS",
@@ -31,15 +22,17 @@
       "port": 53,
       "port_ping_frequency": 10,
       "icmp_ping_frequency": 5,
-      "icmp_pings_per_check": 4
+      "icmp_pings_per_check": 4,
+      "enabled": true
     },
     {
-      "name": "Localhost Web Server",
-      "address": "localhost",
-      "port": 8080,
-      "port_ping_frequency": 5,
-      "icmp_ping_frequency": 10,
-      "icmp_pings_per_check": 3
+      "name": "A Disabled Server",
+      "address": "example.com",
+      "port": 80,
+      "port_ping_frequency": 60,
+      "icmp_ping_frequency": 60,
+      "icmp_pings_per_check": 1,
+      "enabled": false
     }
   ]
 }
