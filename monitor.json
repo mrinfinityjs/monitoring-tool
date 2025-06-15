@@ -1,0 +1,45 @@
+{
+  "log_to_file": true,
+  "log_file_path": "monitor.log",
+  "log_max_size_mb": 10,
+  "servers": [
+    {
+      "name": "Google DNS",
+      "address": "8.8.8.8",
+      "port": 53,
+      "port_ping_frequency": 10,
+      "icmp_ping_frequency": 5,
+      "icmp_pings_per_check": 4,
+      "good_display_ms": 50,
+      "alert_display_ms": 100,
+      "critical_display_ms": 200
+    },
+    {
+      "name": "High Latency Sim",
+      "address": "latency.google.com",
+      "port": 80,
+      "port_ping_frequency": 10,
+      "icmp_ping_frequency": 8,
+      "icmp_pings_per_check": 3,
+      "good_display_ms": 100,
+      "alert_display_ms": 250,
+      "critical_display_ms": 500
+    },
+    {
+      "name": "Cloudflare DNS",
+      "address": "1.1.1.1",
+      "port": 53,
+      "port_ping_frequency": 10,
+      "icmp_ping_frequency": 5,
+      "icmp_pings_per_check": 4
+    },
+    {
+      "name": "Localhost Web Server",
+      "address": "localhost",
+      "port": 8080,
+      "port_ping_frequency": 5,
+      "icmp_ping_frequency": 10,
+      "icmp_pings_per_check": 3
+    }
+  ]
+}

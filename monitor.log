@@ -1,0 +1,20 @@
+[2025-06-15T21:15:01.121Z] [High Latency Sim] SETUP FAILED: Could not resolve hostname "latency.google.com". Error: getaddrinfo ENOTFOUND latency.google.com
+[2025-06-15T21:15:01.127Z] [Google DNS] ICMP STATUS CHANGE: OK -> ALERT. Avg Latency: 187.7ms
+[2025-06-15T21:15:01.133Z] [Localhost Web Server] TCP FAILED: Could not connect to ::1:8080. Reason: connect ECONNREFUSED ::1:8080
+[2025-06-15T21:15:01.324Z] [Cloudflare DNS] ICMP STATUS CHANGE: OK -> ALERT. Avg Latency: 197.6ms
+[2025-06-15T21:15:06.128Z] [Localhost Web Server] TCP FAILED: Could not connect to ::1:8080. Reason: connect ECONNREFUSED ::1:8080
+[2025-06-15T21:15:11.132Z] [Google DNS] ICMP STATUS CHANGE: OK -> ALERT. Avg Latency: 190.8ms
+[2025-06-15T21:15:11.138Z] [Localhost Web Server] TCP FAILED: Could not connect to ::1:8080. Reason: connect ECONNREFUSED ::1:8080
+[2025-06-15T21:15:11.359Z] [Cloudflare DNS] ICMP STATUS CHANGE: OK -> ALERT. Avg Latency: 227.5ms
+[2025-06-15T21:15:16.133Z] [Localhost Web Server] TCP FAILED: Could not connect to ::1:8080. Reason: connect ECONNREFUSED ::1:8080
+[2025-06-15T21:15:21.133Z] [Localhost Web Server] TCP FAILED: Could not connect to ::1:8080. Reason: connect ECONNREFUSED ::1:8080
+[2025-06-15T21:15:21.400Z] [Cloudflare DNS] ICMP STATUS CHANGE: OK -> ALERT. Avg Latency: 272.7ms
+[2025-06-15T21:15:26.133Z] [Localhost Web Server] TCP FAILED: Could not connect to ::1:8080. Reason: connect ECONNREFUSED ::1:8080
+[2025-06-15T21:15:31.133Z] [Localhost Web Server] TCP FAILED: Could not connect to ::1:8080. Reason: connect ECONNREFUSED ::1:8080
+[2025-06-15T21:15:36.142Z] [Google DNS] ICMP STATUS CHANGE: OK -> ALERT. Avg Latency: 190.1ms
+[2025-06-15T21:15:36.147Z] [Localhost Web Server] TCP FAILED: Could not connect to ::1:8080. Reason: connect ECONNREFUSED ::1:8080
+[2025-06-15T21:15:41.147Z] [Localhost Web Server] TCP FAILED: Could not connect to ::1:8080. Reason: connect ECONNREFUSED ::1:8080
+[2025-06-15T21:15:46.138Z] [Google DNS] ICMP STATUS CHANGE: OK -> ALERT. Avg Latency: 191.9ms
+[2025-06-15T21:15:46.149Z] [Localhost Web Server] TCP FAILED: Could not connect to ::1:8080. Reason: connect ECONNREFUSED ::1:8080
+[2025-06-15T21:15:46.382Z] [Cloudflare DNS] ICMP STATUS CHANGE: OK -> ALERT. Avg Latency: 247.1ms
+[2025-06-15T21:15:51.149Z] [Localhost Web Server] TCP FAILED: Could not connect to ::1:8080. Reason: connect ECONNREFUSED ::1:8080

@@ -1,0 +1,15 @@
+{
+  "name": "network-monitor",
+  "version": "2.0.0",
+  "description": "A TUI tool to monitor server TCP ports and ICMP latency.",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "ping": "^0.4.4"
+  }
+}
