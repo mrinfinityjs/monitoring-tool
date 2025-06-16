@@ -1,4 +1,3 @@
-// New UI
 import fs from 'fs/promises';
 import net from 'net';
 import tls from 'tls';
@@ -16,8 +15,8 @@ const CONFIG_REFRESH_INTERVAL_MS = 5000;
 
 // --- State and Config Management ---
 let CONFIG = {};
-const serverStates = new Map();
-const serverTimers = new Map();
+const serverStates = new Map(); // Key is now a unique ID like 'Google-1.2.3.4'
+const serverTimers = new Map(); // Key is the same unique ID
 const alertQueue = [];
 
 // --- UI Elements ---
@@ -77,7 +76,10 @@ async function handleCommand(command) {
     const parsedArgs = parseArgs(argString);
     switch (cmd.toLowerCase()) {
         case 'cmd': case 'help':
-            logAlert('CMD', "Commands: {yellow-fg}enable, disable, cmd/help, clear, exit{/}"); break;
+            logAlert('CMD', "Commands: {yellow-fg}enable, disable, cmd/help, clear, exit{/}");
+            logAlert('CMD', "Usage: enable --name \"Name\" --host \"ip:port\" [...]");
+            logAlert('CMD', "Usage: disable --name \"Name\" [--delete]");
+            break;
         case 'exit': case 'quit': shutdown(); break;
         case 'clear': alertQueue.length = 0; alertLog.setContent(''); break;
         case 'enable':
@@ -119,13 +121,13 @@ async function updateSslLog(serverConfig, ip, cert) {
     }
 }
 
-function updateStatusBasedOnLatency(state, latency) {
+function updateStatusBasedOnLatency(state, latency, latencyType) {
     const { originalConfig } = state;
     let newStatus = 'GOOD';
     if (latency >= (originalConfig.critical_display_ms || 500)) newStatus = 'CRITICAL';
     else if (latency >= (originalConfig.alert_display_ms || 250)) newStatus = 'ALERT';
     if ((newStatus === 'ALERT' || newStatus === 'CRITICAL') && state.status !== newStatus) {
-        logAlert(state.displayName, `{yellow-fg}HIGH LATENCY: ${latency.toFixed(1)}ms{/yellow-fg}`);
+        logAlert(state.displayName, `{yellow-fg}HIGH LATENCY (${latencyType}): ${latency.toFixed(1)}ms{/yellow-fg}`);
     }
     if (state.status !== 'CRITICAL') { state.status = newStatus; }
 }
@@ -134,17 +136,16 @@ function checkTls(serverConfig, ip, state) {
     const startTime = performance.now();
     const socket = tls.connect(serverConfig.port, ip, { servername: net.isIP(serverConfig.address) ? undefined : serverConfig.address, rejectUnauthorized: false }, () => {
         state.connTime = performance.now() - startTime;
-        updateStatusBasedOnLatency(state, state.connTime);
+        updateStatusBasedOnLatency(state, state.connTime, 'TCP');
         const cert = socket.getPeerCertificate(true);
         if (!cert || Object.keys(cert).length === 0) {
-            state.status = 'TLS_FAIL'; state.sslInfo = 'No Cert';
-            socket.destroy(); return;
+            state.status = 'TLS_FAIL'; state.sslInfo = 'No Cert'; socket.destroy(); return;
         }
-        state.sslInfo = 'OK'; // Simplified success status
+        state.sslInfo = 'OK';
         const certPEM = `-----BEGIN CERTIFICATE-----\n${Buffer.from(cert.raw).toString('base64')}\n-----END CERTIFICATE-----`;
         const newHash = crypto.createHash('sha512').update(certPEM).digest('hex');
         if (state.sslHash && state.sslHash !== newHash) {
-            state.status = 'CRITICAL'; logAlert(state.displayName, `{red-bg}CRITICAL: SSL certificate hash changed!{/}`);
+            state.status = 'CRITICAL'; logAlert(state.displayName, `{red-bg}CRITICAL: SSL cert hash changed!{/}`);
         }
         state.sslHash = newHash;
         updateSslLog(serverConfig, ip, cert);
@@ -160,7 +161,7 @@ function checkTcpPort(serverConfig, ip, state) {
     socket.setTimeout(5000);
     socket.on('connect', () => {
         state.connTime = performance.now() - startTime;
-        updateStatusBasedOnLatency(state, state.connTime);
+        updateStatusBasedOnLatency(state, state.connTime, 'TCP');
         state.tcp.success++;
         socket.destroy();
     });
@@ -178,7 +179,7 @@ async function checkIcmpPing(serverConfig, ip, state) {
             state.status = 'UNREACHABLE'; return;
         }
         const avgLatency = parseFloat(res.avg);
-        updateStatusBasedOnLatency(state, avgLatency);
+        updateStatusBasedOnLatency(state, avgLatency, 'ICMP');
         state.icmp.avg = avgLatency;
     } catch (e) { /* silent fail */ }
 }

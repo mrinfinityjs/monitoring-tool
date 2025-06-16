@@ -11,7 +11,7 @@
       "port": 443,
       "check_tls": true,
       "port_ping_frequency": 60,
-      "icmp_ping_frequency": 0,
+      "icmp_ping_frequency": 60,
       "icmp_pings_per_check": 3,
       "enabled": true
     },
