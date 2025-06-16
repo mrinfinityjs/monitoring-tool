@@ -6,6 +6,9 @@ import ping from 'ping';
 import blessed from 'blessed';
 import dns from 'dns/promises';
 import { performance } from 'perf_hooks';
+import { NodeSSH } from 'node-ssh';
+import nmap from 'node-nmap';
+import axios from 'axios';
 
 // --- Constants ---
 const CONFIG_FILE = 'monitor.json';
@@ -15,8 +18,8 @@ const CONFIG_REFRESH_INTERVAL_MS = 5000;
 
 // --- State and Config Management ---
 let CONFIG = {};
-const serverStates = new Map(); // Key is now a unique ID like 'Google-1.2.3.4'
-const serverTimers = new Map(); // Key is the same unique ID
+const serverStates = new Map();
+const serverTimers = new Map();
 const alertQueue = [];
 
 // --- UI Elements ---
@@ -54,6 +57,7 @@ function logAlert(serverName, message) {
     while (alertQueue.length > maxAlerts) { alertQueue.shift(); }
     alertLog.setContent(alertQueue.join('\n'));
     alertLog.setScrollPerc(100);
+    screen.render();
     logToFile(`${serverName}: ${message}`);
 }
 
@@ -68,22 +72,204 @@ async function logToFile(message) {
     } catch (e) { /* silent fail */ }
 }
 
+// --- SSH Core Function ---
+async function sshDo(user, host, keyPath, command) {
+    const ssh = new NodeSSH();
+    try {
+        await ssh.connect({
+            host: host,
+            username: user,
+            privateKeyPath: keyPath
+        });
+        const result = await ssh.execCommand(command);
+        if (result.stderr) {
+            return `{red-fg}ERR: ${result.stderr}{/red-fg}`;
+        }
+        return result.stdout || '{grey-fg}(no output){/grey-fg}';
+    } catch (error) {
+        return `{red-fg}CONN_ERR: ${error.message}{/red-fg}`;
+    } finally {
+        ssh.dispose();
+    }
+}
+
+// --- Helper functions for new commands ---
+
+/**
+ * Finds all IPs for a given target string by first checking monitored servers,
+ * then falling back to DNS resolution.
+ * @returns {Promise<Array<{name: string, ip: string}>>}
+ */
+async function findIpsForTarget(target) {
+    const results = [];
+    const matchedServers = CONFIG.servers.filter(s =>
+        s.name.toLowerCase().includes(target.toLowerCase()) || s.address.includes(target)
+    );
+
+    if (matchedServers.length > 0) {
+        for (const server of matchedServers) {
+            logAlert('CMD', `Found match: ${server.name}. Resolving...`);
+            try {
+                const ips = await dns.resolve(server.address);
+                ips.forEach(ip => results.push({ name: server.name, ip }));
+            } catch (e) {
+                // If it's already an IP, dns.resolve fails. Just use the address.
+                if (net.isIP(server.address)) {
+                    results.push({ name: server.name, ip: server.address });
+                } else {
+                    logAlert('DNS ERROR', `Could not resolve ${server.address}: ${e.message}`);
+                }
+            }
+        }
+    } else {
+        // If no match in config, treat the target as a hostname/IP itself
+        logAlert('CMD', `No match in config. Treating "${target}" as a host...`);
+        try {
+            const ips = await dns.resolve(target);
+            ips.forEach(ip => results.push({ name: target, ip }));
+        } catch (e) {
+            if (net.isIP(target)) {
+                results.push({ name: target, ip: target });
+            } else {
+                logAlert('DNS ERROR', `Could not resolve ${target}: ${e.message}`);
+            }
+        }
+    }
+    // Return a unique set of IPs
+    return [...new Map(results.map(item => [item.ip, item])).values()];
+}
+
+/**
+ * Fetches Reverse DNS, ASN, and Location for a given IP.
+ * @returns {Promise<{rdns: string, asn: string, location: string}>}
+ */
+async function getIpInfo(ip) {
+    try {
+        const [rdnsResult, geoResult] = await Promise.allSettled([
+            dns.reverse(ip),
+            axios.get(`http://ip-api.com/json/${ip}?fields=status,message,countryCode,city,as`)
+        ]);
+
+        const rdns = rdnsResult.status === 'fulfilled' ? rdnsResult.value.join(', ') : 'no rDNS';
+        
+        if (geoResult.status === 'fulfilled' && geoResult.value.data.status === 'success') {
+            const { as, city, countryCode } = geoResult.value.data;
+            const location = city && countryCode ? `${city}, ${countryCode}` : 'N/A';
+            return { rdns, asn: as || 'N/A', location };
+        } else {
+            const errorMsg = geoResult.reason || geoResult.value.data.message;
+            return { rdns, asn: 'API Error', location: errorMsg };
+        }
+    } catch (error) {
+        return { rdns: 'Error', asn: 'Error', location: error.message };
+    }
+}
+
+
+// --- Command Handling ---
 // --- Command Handling ---
 async function handleCommand(command) {
     const [cmd, ...args] = command.trim().split(/\s+/);
     const argString = args.join(' ');
-    const parseArgs = (s) => { const o = {}; (s.match(/--[a-zA-Z_]+(\s+".*?"|\s+\S+)/g) || []).forEach(m => { const [k, ...v] = m.slice(2).split(/\s+/); o[k] = v.join(' ').replace(/"/g, ''); }); return o; };
-    const parsedArgs = parseArgs(argString);
+
+    const parseArgs = (s) => {
+        const options = {};
+        const matches = s.match(/--[a-zA-Z_]+(\s+".*?"|\s+\S+)/g) || [];
+        matches.forEach(match => {
+            const [key, ...val] = match.slice(2).split(/\s+/);
+            options[key] = val.join(' ').replace(/"/g, '');
+        });
+        return options;
+    };
+
     switch (cmd.toLowerCase()) {
         case 'cmd': case 'help':
-            logAlert('CMD', "Commands: {yellow-fg}enable, disable, cmd/help, clear, exit{/}");
+            logAlert('CMD', "Commands: {yellow-fg}ssh, map, info, enable, disable, cmd/help, clear, exit{/}");
+            logAlert('CMD', "Usage: ssh <match>:<command>");
+            logAlert('CMD', "Usage: map <partial_name|ip|host>");
+            logAlert('CMD', "Usage: info <partial_name|ip|host>");
             logAlert('CMD', "Usage: enable --name \"Name\" --host \"ip:port\" [...]");
             logAlert('CMD', "Usage: disable --name \"Name\" [--delete]");
             break;
         case 'exit': case 'quit': shutdown(); break;
         case 'clear': alertQueue.length = 0; alertLog.setContent(''); break;
+        
+        case 'map':
+            if (!argString) { logAlert('CMD ERROR', "Usage: map <partial_name|ip|host>"); return; }
+            logAlert('MAP', `Searching for targets matching "${argString}"...`);
+            const targetsToMap = await findIpsForTarget(argString);
+
+            if (targetsToMap.length === 0) {
+                logAlert('MAP', `{yellow-fg}No IPs found for "${argString}"{/}`);
+                return;
+            }
+
+            for (const target of targetsToMap) {
+                logAlert('MAP', `Scanning {cyan-fg}${target.name} (${target.ip}){/cyan-fg}... (this may take a moment)`);
+                // MODIFIED: Added -sT to use a TCP Connect scan, which doesn't require root privileges.
+                const nmapScan = new nmap.NmapScan(target.ip, '-Pn'); 
+                
+                nmapScan.on('complete', (data) => {
+                    if (data.length > 0 && data[0].openPorts && data[0].openPorts.length > 0) {
+                        const openPorts = data[0].openPorts.map(p => p.port).join(', ');
+                        logAlert(`${target.name} (${target.ip})`, `{green-fg}Open Ports: [${openPorts}]{/}`);
+                    } else {
+                        logAlert(`${target.name} (${target.ip})`, `{yellow-fg}No open ports found (or host is down).{/}`);
+                    }
+                });
+                
+                nmapScan.on('error', (error) => {
+                    // MODIFIED: Added console.log for better debugging
+                    logAlert('MAP ERROR', `{red-fg}Scan failed for ${target.ip}: ${error.message} (Check console for details){/}`);
+                    console.log("Nmap raw error:", error);
+                });
+                nmapScan.startScan();
+            }
+            break;
+
+        case 'info':
+             if (!argString) { logAlert('CMD ERROR', "Usage: info <partial_name|ip|host>"); return; }
+             logAlert('INFO', `Searching for targets matching "${argString}"...`);
+             const targetsToInfo = await findIpsForTarget(argString);
+
+             if (targetsToInfo.length === 0) {
+                logAlert('INFO', `{yellow-fg}No IPs found for "${argString}"{/}`);
+                return;
+             }
+
+            logAlert('INFO', `Fetching details for ${targetsToInfo.length} IP(s)...`);
+             for (const target of targetsToInfo) {
+                const info = await getIpInfo(target.ip);
+                logAlert(target.name, `{cyan-fg}${target.ip}{/cyan-fg} {white-fg}[{/}${info.rdns}{white-fg}] [{/}${info.asn}{white-fg}] [{/}${info.location}{white-fg}]{/}`);
+             }
+            break;
+
+        case 'ssh':
+            const separatorIndex = argString.indexOf(':');
+            if (separatorIndex === -1) {
+                logAlert('CMD ERROR', "Invalid ssh format. Use: ssh <match>:<command>");
+                return;
+            }
+            const matchString = argString.substring(0, separatorIndex);
+            const sshCommand = argString.substring(separatorIndex + 1);
+
+            let matchFound = false;
+            for (const server of CONFIG.servers) {
+                if (server.ssh_user && server.ssh_host && server.ssh_key) {
+                    if (server.name.includes(matchString) || server.ssh_host.includes(matchString)) {
+                        matchFound = true;
+                        logAlert('SSH', `Executing on {cyan-fg}${server.name}{/cyan-fg}: \`${sshCommand}\``);
+                        sshDo(server.ssh_user, server.ssh_host, server.ssh_key, sshCommand)
+                            .then(output => { logAlert(`${server.name}`, `\n${output}`); });
+                    }
+                }
+            }
+            if (!matchFound) { logAlert('SSH', `No SSH-enabled servers found matching "${matchString}"`); }
+            break;
+
         case 'enable':
             try {
+                const parsedArgs = parseArgs(argString);
                 if (!parsedArgs.name || !parsedArgs.host) throw new Error("`--name` and `--host` are required.");
                 const [address, port] = parsedArgs.host.split(':');
                 const newServer = { name: parsedArgs.name, address, port: parseInt(port), enabled: true, check_tls: parsedArgs.check_tls === 'true', port_ping_frequency: parseInt(parsedArgs.port_ping_frequency || 15), icmp_ping_frequency: parseInt(parsedArgs.icmp_ping_frequency || 10), icmp_pings_per_check: parseInt(parsedArgs.icmp_pings_per_check || 3) };
@@ -93,8 +279,10 @@ async function handleCommand(command) {
                 await fs.writeFile(CONFIG_FILE, JSON.stringify(conf, null, 2));
                 logAlert('CMD', `{green-fg}Enabled: ${newServer.name}{/}`);
             } catch (e) { logAlert('CMD ERROR', `{red-fg}${e.message}{/}`); } break;
+        
         case 'disable':
             try {
+                const parsedArgs = parseArgs(argString);
                 if (!parsedArgs.name) throw new Error("`--name` is required.");
                 let conf = JSON.parse(await fs.readFile(CONFIG_FILE, 'utf-8'));
                 const i = conf.servers.findIndex(s => s.name === parsedArgs.name);
@@ -103,6 +291,7 @@ async function handleCommand(command) {
                 else { conf.servers[i].enabled = false; logAlert('CMD', `{yellow-fg}Disabled: ${parsedArgs.name}{/}`); }
                 await fs.writeFile(CONFIG_FILE, JSON.stringify(conf, null, 2));
             } catch (e) { logAlert('CMD ERROR', `{red-fg}${e.message}{/}`); } break;
+        
         default: if (cmd) logAlert('CMD', `Unknown cmd: '${cmd}'.`);
     }
 }
@@ -187,23 +376,18 @@ async function checkIcmpPing(serverConfig, ip, state) {
 function startMonitoring(target) {
     const { uniqueId, ip, ipFamily, originalConfig } = target;
     if (serverTimers.has(uniqueId)) return;
-
     const displayName = `${originalConfig.name} (${ipFamily === 6 ? 'v6' : 'v4'})`;
     serverStates.set(uniqueId, {
         uniqueId, ip, ipFamily, displayName, originalConfig,
         status: 'PENDING', disabledTimestamp: null, sslHash: null, sslInfo: null,
         tcp: { success: 0, fail: 0 }, icmp: { avg: null }, connTime: null
     });
-
     const timers = {};
     const checkFunc = originalConfig.check_tls ? checkTls : checkTcpPort;
-
     if (originalConfig.port && originalConfig.port_ping_frequency > 0) {
         const runCheck = () => {
             const currentState = serverStates.get(uniqueId);
-            if (currentState && !currentState.disabledTimestamp) {
-                checkFunc(originalConfig, ip, currentState);
-            }
+            if (currentState && !currentState.disabledTimestamp) { checkFunc(originalConfig, ip, currentState); }
         };
         runCheck();
         timers.main = setInterval(runCheck, originalConfig.port_ping_frequency * 1000);
@@ -211,9 +395,7 @@ function startMonitoring(target) {
     if (originalConfig.icmp_ping_frequency > 0) {
         const runIcmp = () => {
             const currentState = serverStates.get(uniqueId);
-            if (currentState && !currentState.disabledTimestamp) {
-                checkIcmpPing(originalConfig, ip, currentState);
-            }
+            if (currentState && !currentState.disabledTimestamp) { checkIcmpPing(originalConfig, ip, currentState); }
         };
         runIcmp();
         timers.icmp = setInterval(runIcmp, originalConfig.icmp_ping_frequency * 1000);
@@ -270,13 +452,22 @@ async function syncMonitors() {
     const allTargetMonitors = new Map();
     for (const server of CONFIG.servers) {
         if (!server.enabled) continue;
-        const resolutions = await Promise.allSettled([
-            dns.resolve4(server.address).catch(() => []), dns.resolve6(server.address).catch(() => [])
-        ]);
-        let ipsV4 = resolutions[0].status === 'fulfilled' ? resolutions[0].value : [];
-        let ipsV6 = resolutions[1].status === 'fulfilled' ? resolutions[1].value : [];
-        if (net.isIP(server.address) === 4) ipsV4.push(server.address);
-        else if (net.isIP(server.address) === 6) ipsV6.push(server.address);
+        
+        let allIps = [];
+        try {
+            allIps = await dns.resolve(server.address);
+        } catch (e) {
+            // If resolution fails, it might be a malformed hostname or just an IP.
+            // Check if it's a valid IP and use it directly.
+            if(net.isIP(server.address)) {
+                allIps.push(server.address);
+            }
+        }
+        
+        // Categorize into v4 and v6
+        const ipsV4 = allIps.filter(ip => net.isIP(ip) === 4);
+        const ipsV6 = allIps.filter(ip => net.isIP(ip) === 6);
+
         new Set(ipsV4).forEach(ip => { allTargetMonitors.set(`${server.name}-${ip}`, { uniqueId: `${server.name}-${ip}`, ip, ipFamily: 4, originalConfig: server }); });
         new Set(ipsV6).forEach(ip => { allTargetMonitors.set(`${server.name}-${ip}`, { uniqueId: `${server.name}-${ip}`, ip, ipFamily: 6, originalConfig: server }); });
     }

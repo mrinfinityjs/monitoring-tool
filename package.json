@@ -1,7 +1,7 @@
 {
   "name": "network-monitor",
-  "version": "3.0.0",
-  "description": "An interactive TUI tool to monitor server TCP/TLS ports and ICMP latency.",
+  "version": "4.0.0",
+  "description": "An interactive TUI tool to monitor and manage servers.",
   "main": "index.js",
   "type": "module",
   "scripts": {
@@ -10,7 +10,20 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "axios": "^1.10.0",
     "blessed": "^0.1.81",
+    "node-nmap": "^4.0.0",
+    "node-ssh": "^13.1.0",
     "ping": "^0.4.4"
-  }
+  },
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mrinfinityjs/monitoring-tool.git"
+  },
+  "keywords": [],
+  "bugs": {
+    "url": "https://github.com/mrinfinityjs/monitoring-tool/issues"
+  },
+  "homepage": "https://github.com/mrinfinityjs/monitoring-tool#readme"
 }

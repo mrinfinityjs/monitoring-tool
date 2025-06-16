@@ -4,6 +4,7 @@
   "log_max_size_mb": 10,
   "disabled_show_total_time": 300,
   "total_display_alerts": 10,
+  "nmap_ports": "1-1024",
   "servers": [
     {
       "name": "www.vp.net (TLS)",
@@ -34,6 +35,18 @@
       "icmp_ping_frequency": 60,
       "icmp_pings_per_check": 1,
       "enabled": false
+    },
+    {
+      "name": "My LAN Server",
+      "address": "192.168.4.132",
+      "port": 22,
+      "enabled": true,
+      "port_ping_frequency": 30,
+      "icmp_ping_frequency": 15,
+      "check_tls": false,
+      "ssh_user": "node",
+      "ssh_host": "192.168.4.132",
+      "ssh_key": "/home/shane/.ssh/rezux"
     }
   ]
 }
