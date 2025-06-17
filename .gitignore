@@ -8,6 +8,8 @@
 # Ignore the node_modules directory entirely. This is the most important rule.
 # Dependencies should be installed by running `npm install` using the
 # package.json and package-lock.json files.
+package-lock.json
+ssl-verified.json
 /node_modules
 
 # We DO want to commit package-lock.json to ensure consistent installs.

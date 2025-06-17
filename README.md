@@ -1,10 +1,10 @@
-# Terminal Network Monitoring Tool
+# Terminal Network Monitoring Tools
 
 A comprehensive, terminal-based network monitoring tool written in Node.js. It provides real-time latency and status monitoring for TCP/TLS endpoints, along with a suite of interactive commands for on-the-fly network diagnostics, including port scanning, IP information lookup, and remote server command execution via SSH.
 
 ## Screenshot
 
-
+![Terminal](https://github.com/mrinfinityjs/monitoring-tool/blob/main/image.png?raw=true) 
 
 ## Features
 
@@ -130,12 +130,12 @@ To start the monitoring tool, run the following command from your project direct
 ```bash
 npm start
 ```
-*(This assumes you have a `"start": "node monitor.js"` script in your `package.json`).*
+*(This assumes you have a `"start": "node netmon.js"` script in your `package.json`).*
 
 Alternatively, you can run the script directly:
 
 ```bash
-node monitor.js
+node netmon.js
 ```
 
 ## Interactive Commands

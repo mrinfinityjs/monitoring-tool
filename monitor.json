@@ -4,7 +4,6 @@
   "log_max_size_mb": 10,
   "disabled_show_total_time": 300,
   "total_display_alerts": 10,
-  "nmap_ports": "1-1024",
   "servers": [
     {
       "name": "www.vp.net (TLS)",
@@ -21,8 +20,8 @@
       "address": "1.1.1.1",
       "port": 53,
       "check_tls": false,
-      "port_ping_frequency": 10,
-      "icmp_ping_frequency": 10,
+      "port_ping_frequency": 120,
+      "icmp_ping_frequency": 120,
       "icmp_pings_per_check": 4,
       "enabled": true
     },
@@ -31,21 +30,21 @@
       "address": "expired.badssl.com",
       "port": 443,
       "check_tls": true,
-      "port_ping_frequency": 60,
-      "icmp_ping_frequency": 60,
+      "port_ping_frequency": 160,
+      "icmp_ping_frequency": 160,
       "icmp_pings_per_check": 1,
       "enabled": false
     },
     {
       "name": "My LAN Server",
-      "address": "192.168.4.132",
+      "address": "192.168.4.134",
       "port": 22,
       "enabled": true,
       "port_ping_frequency": 30,
       "icmp_ping_frequency": 15,
       "check_tls": false,
       "ssh_user": "node",
-      "ssh_host": "192.168.4.132",
+      "ssh_host": "192.168.4.134",
       "ssh_key": "/home/shane/.ssh/rezux"
     }
   ]
