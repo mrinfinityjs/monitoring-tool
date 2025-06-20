@@ -4,7 +4,7 @@ A comprehensive, terminal-based network monitoring tool written in Node.js. It p
 
 ## Screenshot
 
-![Terminal](https://github.com/mrinfinityjs/monitoring-tool/blob/main/image.png?raw=true) 
+![Terminal](https://github.com/mrinfinityjs/monitoring-tool/blob/main/image.jpg?raw=true) 
 
 ## Features
 
